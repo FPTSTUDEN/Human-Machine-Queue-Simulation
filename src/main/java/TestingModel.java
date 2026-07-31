@@ -1,8 +1,6 @@
-package org.example;
-
-import org.example.model.SimulationConfig;
-import org.example.model.SimulationResult;
-import org.example.model.SupermarketModel;
+import model.SimulationConfig;
+import model.SimulationResult;
+import model.SupermarketModel;
 
 public class TestingModel {
 

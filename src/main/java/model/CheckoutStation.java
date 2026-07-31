@@ -1,7 +1,4 @@
-package org.example.model;
-
-import org.example.model.CheckoutType;
-import org.example.model.Customer;
+package model;
 
 import java.util.LinkedList;
 import java.util.Queue;

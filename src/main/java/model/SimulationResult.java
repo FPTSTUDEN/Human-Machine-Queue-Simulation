@@ -1,4 +1,4 @@
-package org.example.model;
+package model;
 /**
  * Stores the performance results produced by the Model
  * and returned to the Controller after a simulation run.

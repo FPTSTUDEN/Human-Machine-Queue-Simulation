@@ -1,4 +1,4 @@
-package org.example.model;
+package model;
 /**
  * Represents a customer in the supermarket checkout simulation.
  * Stores arrival, service, and departure times used to calculate

@@ -1,4 +1,4 @@
-package org.example.model;
+package model;
 /**
  * Stores the input parameters received from the Controller
  * before a simulation run starts.
