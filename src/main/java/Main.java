@@ -2,8 +2,8 @@
 // package main;
 
 import controller.Controller;
-import controller.SimulationResults;
 import model.SimulationConfig;
+import model.SimulationResults;
 
 public class Main {
     
