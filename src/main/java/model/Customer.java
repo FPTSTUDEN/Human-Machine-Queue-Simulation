@@ -12,6 +12,7 @@ public class Customer implements Comparable<Customer> {
 
     private double serviceStartTime;
     private double departureTime;
+    private double abandonmentTime;
 
     private CheckoutType checkoutType;
     private boolean abandoned;
@@ -23,6 +24,7 @@ public class Customer implements Comparable<Customer> {
         this.arrivalTime = arrivalTime;
         this.serviceStartTime = -1;
         this.departureTime = -1;
+        this.abandonmentTime = -1;
         this.abandoned = false;
         this.serviceTime = serviceTime;
     }
@@ -49,6 +51,14 @@ public class Customer implements Comparable<Customer> {
 
     public void setDepartureTime(double departureTime) {
         this.departureTime = departureTime;
+    }
+
+    public double getAbandonmentTime() {
+        return abandonmentTime;
+    }
+
+    public void setAbandonmentTime(double abandonmentTime) {
+        this.abandonmentTime = abandonmentTime;
     }
 
     public CheckoutType getCheckoutType() {
@@ -78,25 +88,20 @@ public class Customer implements Comparable<Customer> {
     /**
      * Calculates the customer's waiting time.
      */
-
     public double getWaitingTime() {
         if (serviceStartTime < 0) {
             return 0;
         }
-
         return serviceStartTime - arrivalTime;
     }
 
     /**
-     * Calculates the total time the customer spends
-     * in the system.
+     * Calculates the total time the customer spends in the system.
      */
-
     public double getTotalTimeInSystem() {
         if (departureTime < 0) {
             return 0;
         }
-
         return departureTime - arrivalTime;
     }
 
@@ -104,5 +109,11 @@ public class Customer implements Comparable<Customer> {
     public int compareTo(Customer other) {
         // Customers with earlier arrival time have higher priority
         return Double.compare(this.arrivalTime, other.arrivalTime);
+    }
+
+    @Override
+    public String toString() {
+        return String.format("Customer{id=%d, arrival=%.2f, serviceTime=%.2f, abandoned=%b}",
+                id, arrivalTime, serviceTime, abandoned);
     }
 }
