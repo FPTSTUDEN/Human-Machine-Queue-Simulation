@@ -8,7 +8,7 @@ import java.util.Random;
  * A station can be either a human cashier or a self-checkout kiosk.
  * It manages its own waiting queue and current customer.
  */
-public class CheckoutStation {
+public class CheckoutStation implements Comparable<CheckoutStation> {
 
     private final int id;
     private final CheckoutType type;
@@ -237,5 +237,12 @@ public class CheckoutStation {
     public String toString() {
         return String.format("CheckoutStation{id=%d, type=%s, busy=%b, queueLength=%d, served=%d, totalBusyTime=%.2f}",
                 id, type, busy, getQueueLength(), servedCustomerCount, totalBusyTime);
+    }
+
+    @Override
+    public int compareTo(CheckoutStation other) {
+        // Compare based on queue length + is busy (to prioritize stations with fewer customers)
+        return Integer.compare(this.getTotalCustomers(), other.getTotalCustomers());
+        //  to get the station with the least load on a list, use Collections.min(listOfStations) or Collections.max(listOfStations) for the station with the most load
     }
 }

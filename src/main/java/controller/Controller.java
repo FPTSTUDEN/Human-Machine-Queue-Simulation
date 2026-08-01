@@ -122,10 +122,7 @@ public class Controller {
                 
                 // If station is free, start service immediately
                 if (!selectedStation.isBusy()) {
-                    Customer nextCustomer = selectedStation.getNextCustomer();
-                    if (nextCustomer != null) {
-                        selectedStation.startService(nextCustomer, currentTime);
-                    }
+                    selectedStation.startNextCustomer(currentTime);
                 }
             }
             
@@ -141,27 +138,7 @@ public class Controller {
         if (stations.isEmpty()) {
             return null;
         }
-        
-        CheckoutStation bestStation = stations.get(0);
-        int minQueueLength = bestStation.getQueueLength();
-        
-        // If best station is busy, check if there's a free station
-        if (bestStation.isBusy()) {
-            for (CheckoutStation station : stations) {
-                if (!station.isBusy()) {
-                    return station;
-                }
-            }
-        }
-        
-        // Find station with shortest queue
-        for (CheckoutStation station : stations) {
-            int queueLength = station.getQueueLength();
-            if (queueLength < minQueueLength) {
-                minQueueLength = queueLength;
-                bestStation = station;
-            }
-        }
+        CheckoutStation bestStation = Collections.min(stations);
         
         return bestStation;
     }
@@ -192,10 +169,7 @@ public class Controller {
                         totalSystemTime += currentCustomer.getTotalTimeInSystem();
                         
                         // Start next customer immediately
-                        Customer nextCustomer = station.getNextCustomer();
-                        if (nextCustomer != null) {
-                            station.startService(nextCustomer, currentTime);
-                        }
+                        station.startNextCustomer(currentTime);
                         
                         hasCompletions = true;
                     }
