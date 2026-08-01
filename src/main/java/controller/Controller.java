@@ -255,18 +255,6 @@ public class Controller {
             }
         }
         
-        // Any customers still in queues at end of simulation are counted as abandoned
-        for (CheckoutStation station : stations) {
-            while (station.hasWaitingCustomers()) {
-                Customer abandoned = station.removeNextCustomer();
-                if (abandoned != null) {
-                    abandoned.setAbandoned(true);
-                    abandoned.setAbandonmentTime(currentTime);
-                    abandonedCustomers.add(abandoned);
-                    totalCustomersAbandoned++;
-                }
-            }
-        }
     }
     
     /**
