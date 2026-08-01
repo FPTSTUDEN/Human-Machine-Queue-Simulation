@@ -34,11 +34,6 @@ public class CheckoutStation implements Comparable<CheckoutStation> {
         this.servedCustomerCount = 0;
     }
 
-    // Overloaded constructor for backward compatibility
-    public CheckoutStation(int id, CheckoutType type) {
-        this(id, type, new double[]{});
-    }
-
     public int getId() {
         return id;
     }
@@ -67,10 +62,6 @@ public class CheckoutStation implements Comparable<CheckoutStation> {
         return servedCustomerCount;
     }
 
-    public double[] getServiceTimes() {
-        return serviceTimes;
-    }
-
     /**
      * Picks a random service time from the service times array
      */
@@ -92,15 +83,6 @@ public class CheckoutStation implements Comparable<CheckoutStation> {
         double serviceTime = getRandomServiceTime();
         customer.setServiceTime(serviceTime);
         
-        customerQueue.add(customer);
-    }
-
-    /**
-     * Adds a customer with a specific service time
-     */
-    public void addCustomer(Customer customer, double serviceTime) {
-        customer.setCheckoutType(type);
-        customer.setServiceTime(serviceTime);
         customerQueue.add(customer);
     }
 
@@ -164,14 +146,6 @@ public class CheckoutStation implements Comparable<CheckoutStation> {
     }
 
     /**
-     * Completes the current customer's service and immediately starts the next one
-     */
-    public boolean completeAndStartNext(double currentTime) {
-        completeService(currentTime);
-        return startNextCustomer(currentTime);
-    }
-
-    /**
      * Checks if the station has customers waiting in queue
      */
     public boolean hasWaitingCustomers() {
@@ -186,51 +160,10 @@ public class CheckoutStation implements Comparable<CheckoutStation> {
     }
 
     /**
-     * Gets the estimated finish time for the current customer
-     */
-    public double getCurrentFinishTime() {
-        if (currentCustomer == null) {
-            return -1;
-        }
-        return currentCustomer.getServiceStartTime() + currentCustomer.getServiceTime();
-    }
-
-    /**
-     * Calculates the waiting time for the next customer in queue
-     * This helps in determining if customers might abandon
-     */
-    public double getNextCustomerWaitingTime(double currentTime) {
-        Customer next = customerQueue.peek();
-        if (next == null) {
-            return -1;
-        }
-        return currentTime - next.getArrivalTime();
-    }
-
-    /**
      * Removes the next customer from the queue without serving them (for abandonment)
      */
     public Customer removeNextCustomer() {
         return customerQueue.poll();
-    }
-
-    /**
-     * Checks if a customer would abandon the queue
-     */
-    public boolean shouldAbandonNext(double currentTime, double maxWaitingTime) {
-        Customer next = customerQueue.peek();
-        if (next == null) {
-            return false;
-        }
-        return (currentTime - next.getArrivalTime()) > maxWaitingTime;
-    }
-
-    /**
-     * Updates the station state - can be used for future three-phase simulation
-     */
-    public void updateState(double currentTime) {
-        // This method can be extended for three-phase simulation
-        // For example, checking for abandonment, updating metrics, etc.
     }
 
     @Override
@@ -243,6 +176,5 @@ public class CheckoutStation implements Comparable<CheckoutStation> {
     public int compareTo(CheckoutStation other) {
         // Compare based on queue length + is busy (to prioritize stations with fewer customers)
         return Integer.compare(this.getTotalCustomers(), other.getTotalCustomers());
-        //  to get the station with the least load on a list, use Collections.min(listOfStations) or Collections.max(listOfStations) for the station with the most load
     }
 }

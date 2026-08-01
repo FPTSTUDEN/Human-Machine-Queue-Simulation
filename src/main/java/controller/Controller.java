@@ -138,9 +138,7 @@ public class Controller {
         if (stations.isEmpty()) {
             return null;
         }
-        CheckoutStation bestStation = Collections.min(stations);
-        
-        return bestStation;
+        return Collections.min(stations);
     }
     
     /**
@@ -228,9 +226,6 @@ public class Controller {
             }
         }
         
-        // Check next abandonment (optional: check every small time step)
-        // For efficiency, we check abandonments at each event time
-        
         // If no more events, end simulation
         if (nextEventTime == Double.MAX_VALUE) {
             simulationRunning = false;
@@ -254,7 +249,6 @@ public class Controller {
                 totalSystemTime += customer.getTotalTimeInSystem();
             }
         }
-        
     }
     
     /**
