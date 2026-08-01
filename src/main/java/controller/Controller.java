@@ -14,11 +14,11 @@ public class Controller {
     private final List<CheckoutStation> stations;
     private final List<Customer> allCustomers;
     private final List<Customer> abandonedCustomers;
+    private final Random random;
     
     private double currentTime;
     private int customerIdCounter;
     private double nextArrivalTime;
-    private boolean simulationRunning;
     
     // Statistics
     private int totalCustomersServed;
@@ -31,9 +31,9 @@ public class Controller {
         this.stations = new ArrayList<>();
         this.allCustomers = new ArrayList<>();
         this.abandonedCustomers = new ArrayList<>();
+        this.random = new Random();
         this.currentTime = 0;
         this.customerIdCounter = 0;
-        this.simulationRunning = false;
         this.totalCustomersServed = 0;
         this.totalCustomersAbandoned = 0;
         this.totalWaitingTime = 0;
@@ -42,9 +42,6 @@ public class Controller {
         initializeStations();
     }
     
-    /**
-     * Initializes checkout stations with service time arrays
-     */
     private void initializeStations() {
         int stationId = 0;
         
@@ -67,179 +64,134 @@ public class Controller {
         }
     }
     
-    /**
-     * Runs the complete simulation
-     */
     public SimulationResults runSimulation() {
-        simulationRunning = true;
         currentTime = 0;
-        generateFirstArrival();
+        nextArrivalTime = generateExponentialInterarrival();
         
-        while (simulationRunning && currentTime < config.getSimulationDuration()) {
-            // Phase 1: Process arrivals
+        while (currentTime < config.getSimulationDuration()) {
             processArrivals();
-            
-            // Phase 2: Process service completions
             processServiceCompletions();
-            
-            // Phase 3: Process abandonments
             processAbandonments();
-            
-            // Advance time to next event
             advanceTime();
         }
         
-        // Process remaining customers at end of simulation
-        processRemainingCustomers();
-        
+        finishRemainingServices();
         return generateResults();
     }
     
-    /**
-     * Generates the first arrival time
-     */
-    private void generateFirstArrival() {
-        nextArrivalTime = generateExponentialInterarrival();
-    }
-    
-    /**
-     * Phase 1: Process all arrivals up to current time
-     */
     private void processArrivals() {
         while (nextArrivalTime <= currentTime && currentTime < config.getSimulationDuration()) {
-            // Create new customer
-            Customer customer = new Customer(
-                customerIdCounter++,
-                nextArrivalTime,
-                0 // Service time will be assigned by station
-            );
-            
-            // Route to best station
-            CheckoutStation selectedStation = selectBestStation();
-            if (selectedStation != null) {
-                selectedStation.addCustomer(customer);
-                allCustomers.add(customer);
-                
-                // If station is free, start service immediately
-                if (!selectedStation.isBusy()) {
-                    selectedStation.startNextCustomer(currentTime);
-                }
-            }
-            
-            // Generate next arrival
+            Customer customer = createCustomer(nextArrivalTime);
+            assignCustomerToStation(customer);
             nextArrivalTime += generateExponentialInterarrival();
         }
     }
     
-    /**
-     * Selects the station with the shortest queue
-     */
+    private Customer createCustomer(double arrivalTime) {
+        return new Customer(customerIdCounter++, arrivalTime, 0);
+    }
+    
+    private void assignCustomerToStation(Customer customer) {
+        CheckoutStation station = selectBestStation();
+        if (station == null) return;
+        
+        station.addCustomer(customer);
+        allCustomers.add(customer);
+        
+        if (!station.isBusy()) {
+            station.startNextCustomer(currentTime);
+        }
+    }
+    
     private CheckoutStation selectBestStation() {
-        if (stations.isEmpty()) {
-            return null;
-        }
-        return Collections.min(stations);
+        return stations.isEmpty() ? null : Collections.min(stations);
     }
     
-    /**
-     * Phase 2: Process all service completions
-     */
     private void processServiceCompletions() {
-        boolean hasCompletions = true;
-        
-        // Loop to handle simultaneous completions
-        while (hasCompletions) {
+        boolean hasCompletions;
+        do {
             hasCompletions = false;
-            
             for (CheckoutStation station : stations) {
-                if (station.isBusy()) {
-                    Customer currentCustomer = station.getCurrentCustomer();
-                    double finishTime = currentCustomer.getServiceStartTime() + 
-                                      currentCustomer.getServiceTime();
-                    
-                    if (finishTime <= currentTime) {
-                        // Complete service
-                        station.completeService(currentTime);
-                        totalCustomersServed++;
-                        
-                        // Update statistics
-                        totalWaitingTime += currentCustomer.getWaitingTime();
-                        totalSystemTime += currentCustomer.getTotalTimeInSystem();
-                        
-                        // Start next customer immediately
-                        station.startNextCustomer(currentTime);
-                        
-                        hasCompletions = true;
-                    }
+                if (station.isBusy() && isServiceComplete(station)) {
+                    completeService(station);
+                    hasCompletions = true;
                 }
             }
-        }
+        } while (hasCompletions);
     }
     
-    /**
-     * Phase 3: Process customer abandonments
-     */
+    private boolean isServiceComplete(CheckoutStation station) {
+        Customer customer = station.getCurrentCustomer();
+        double finishTime = customer.getServiceStartTime() + customer.getServiceTime();
+        return finishTime <= currentTime;
+    }
+    
+    private void completeService(CheckoutStation station) {
+        Customer customer = station.getCurrentCustomer();
+        station.completeService(currentTime);
+        totalCustomersServed++;
+        totalWaitingTime += customer.getWaitingTime();
+        totalSystemTime += customer.getTotalTimeInSystem();
+        station.startNextCustomer(currentTime);
+    }
+    
     private void processAbandonments() {
-        double maxWaitingTime = config.getMaximumWaitingTime();
+        double maxWaitTime = config.getMaximumWaitingTime();
         
         for (CheckoutStation station : stations) {
-            // Check if customers in queue are waiting too long
             while (station.hasWaitingCustomers()) {
-                Customer nextCustomer = station.peekNextCustomer();
-                double waitingTime = currentTime - nextCustomer.getArrivalTime();
-                
-                if (waitingTime > maxWaitingTime) {
-                    // Customer abandons
-                    Customer abandoned = station.removeNextCustomer();
-                    if (abandoned != null) {
-                        abandoned.setAbandoned(true);
-                        abandoned.setAbandonmentTime(currentTime);
-                        abandonedCustomers.add(abandoned);
-                        totalCustomersAbandoned++;
-                    }
-                } else {
-                    break; // Queue is ordered by arrival time, so break if next customer hasn't waited too long
+                Customer next = station.peekNextCustomer();
+                if (currentTime - next.getArrivalTime() <= maxWaitTime) {
+                    break;
                 }
+                abandonCustomer(station);
             }
         }
     }
     
-    /**
-     * Advances time to the next event
-     */
+    private void abandonCustomer(CheckoutStation station) {
+        Customer customer = station.removeNextCustomer();
+        if (customer != null) {
+            customer.setAbandoned(true);
+            customer.setAbandonmentTime(currentTime);
+            abandonedCustomers.add(customer);
+            totalCustomersAbandoned++;
+        }
+    }
+    
     private void advanceTime() {
-        double nextEventTime = Double.MAX_VALUE;
+        double nextEventTime = findNextEventTime();
         
-        // Check next arrival
-        if (nextArrivalTime < config.getSimulationDuration()) {
-            nextEventTime = Math.min(nextEventTime, nextArrivalTime);
-        }
-        
-        // Check next service completion
-        for (CheckoutStation station : stations) {
-            if (station.isBusy()) {
-                Customer customer = station.getCurrentCustomer();
-                double finishTime = customer.getServiceStartTime() + customer.getServiceTime();
-                if (finishTime <= config.getSimulationDuration()) {
-                    nextEventTime = Math.min(nextEventTime, finishTime);
-                }
-            }
-        }
-        
-        // If no more events, end simulation
         if (nextEventTime == Double.MAX_VALUE) {
-            simulationRunning = false;
             currentTime = config.getSimulationDuration();
         } else {
             currentTime = Math.min(nextEventTime, config.getSimulationDuration());
         }
     }
     
-    /**
-     * Processes any remaining customers when simulation ends
-     */
-    private void processRemainingCustomers() {
-        // Complete all current services
+    private double findNextEventTime() {
+        double nextTime = Double.MAX_VALUE;
+        
+        // Next arrival
+        if (nextArrivalTime < config.getSimulationDuration()) {
+            nextTime = Math.min(nextTime, nextArrivalTime);
+        }
+        
+        // Next service completion
+        for (CheckoutStation station : stations) {
+            if (station.isBusy()) {
+                Customer customer = station.getCurrentCustomer();
+                double finishTime = customer.getServiceStartTime() + customer.getServiceTime();
+                if (finishTime <= config.getSimulationDuration()) {
+                    nextTime = Math.min(nextTime, finishTime);
+                }
+            }
+        }
+        
+        return nextTime;
+    }
+    
+    private void finishRemainingServices() {
         for (CheckoutStation station : stations) {
             if (station.isBusy()) {
                 Customer customer = station.getCurrentCustomer();
@@ -251,17 +203,10 @@ public class Controller {
         }
     }
     
-    /**
-     * Generates exponential inter-arrival time
-     */
     private double generateExponentialInterarrival() {
-        Random random = new Random();
         return -Math.log(1 - random.nextDouble()) / config.getArrivalRate();
     }
     
-    /**
-     * Generates simulation results
-     */
     private SimulationResults generateResults() {
         SimulationResults results = new SimulationResults();
         results.setTotalCustomers(allCustomers.size());
@@ -271,7 +216,7 @@ public class Controller {
         results.setTotalSystemTime(totalSystemTime);
         results.setSimulationDuration(currentTime);
         
-        // Calculate station statistics
+        // Station statistics
         Map<Integer, StationStats> stationStats = new HashMap<>();
         for (CheckoutStation station : stations) {
             StationStats stats = new StationStats();
@@ -279,12 +224,12 @@ public class Controller {
             stats.setType(station.getType());
             stats.setServedCustomers(station.getServedCustomerCount());
             stats.setTotalBusyTime(station.getTotalBusyTime());
-            stats.setUtilization(station.getTotalBusyTime() / currentTime);
+            stats.setUtilization(currentTime > 0 ? station.getTotalBusyTime() / currentTime : 0);
             stationStats.put(station.getId(), stats);
         }
         results.setStationStats(stationStats);
         
-        // Calculate average waiting time
+        // Averages
         if (totalCustomersServed > 0) {
             results.setAverageWaitingTime(totalWaitingTime / totalCustomersServed);
             results.setAverageSystemTime(totalSystemTime / totalCustomersServed);
@@ -293,19 +238,9 @@ public class Controller {
         return results;
     }
     
-    public List<CheckoutStation> getStations() {
-        return stations;
-    }
-    
-    public List<Customer> getAllCustomers() {
-        return allCustomers;
-    }
-    
-    public List<Customer> getAbandonedCustomers() {
-        return abandonedCustomers;
-    }
-    
-    public double getCurrentTime() {
-        return currentTime;
-    }
+    // Getters
+    public List<CheckoutStation> getStations() { return stations; }
+    public List<Customer> getAllCustomers() { return allCustomers; }
+    public List<Customer> getAbandonedCustomers() { return abandonedCustomers; }
+    public double getCurrentTime() { return currentTime; }
 }
