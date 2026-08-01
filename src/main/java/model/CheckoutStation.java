@@ -1,7 +1,7 @@
 package model;
 
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.PriorityQueue;
+
 /**
  * Represents one checkout service point.
  * A station can be either a human cashier or a self-checkout kiosk.
@@ -13,7 +13,7 @@ public class CheckoutStation {
     private final int id;
     private final CheckoutType type;
 
-    private final Queue<Customer> customerQueue;
+    private final PriorityQueue<Customer> customerQueue;
 
     private Customer currentCustomer;
     private boolean busy;
@@ -24,7 +24,7 @@ public class CheckoutStation {
     public CheckoutStation(int id, CheckoutType type) {
         this.id = id;
         this.type = type;
-        this.customerQueue = new LinkedList<>();
+        this.customerQueue = new PriorityQueue<>();
         this.busy = false;
         this.totalBusyTime = 0;
         this.servedCustomerCount = 0;
