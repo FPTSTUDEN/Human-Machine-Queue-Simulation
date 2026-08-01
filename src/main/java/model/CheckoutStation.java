@@ -59,9 +59,32 @@ public class CheckoutStation {
     }
 
     /**
+     * Returns the total number of customers at this station
+     * including both waiting and currently being served.
+     */
+    public int getTotalCustomersIncludingCurrent() {
+        return customerQueue.size() + (busy ? 1 : 0);
+    }
+
+    /**
+     * Checks if this station can accept a new customer
+     * based on the maximum allowed queue length.
+     */
+    public boolean canAcceptCustomer(int maxQueueLength) {
+        return getTotalCustomersIncludingCurrent() <= maxQueueLength;
+    }
+
+    /**
+     * Calculates the estimated wait time for a new customer
+     * based on current queue length and average service time.
+     */
+    public double calculateEstimatedWaitTime(double avgServiceTime) {
+        return getTotalCustomersIncludingCurrent() * avgServiceTime;
+    }
+
+    /**
      * Adds a customer to this station's waiting queue.
      */
-
     public void addCustomer(Customer customer) {
         customer.setCheckoutType(type);
         customerQueue.add(customer);
@@ -70,15 +93,13 @@ public class CheckoutStation {
     /**
      * Returns the next customer waiting in the queue.
      */
-
-    public Customer getNextCustomer() {
+    public Customer getNextWaitingCustomer() {
         return customerQueue.poll();
     }
 
     /**
      * Starts serving the specified customer.
      */
-
     public void startService(Customer customer, double currentTime) {
         currentCustomer = customer;
         currentCustomer.setServiceStartTime(currentTime);
@@ -86,20 +107,66 @@ public class CheckoutStation {
     }
 
     /**
-     * Completes the current customer's service
+     * Completes the current customer's service and returns the completed customer.
      */
-
-    public void completeService(double currentTime) {
+    public Customer completeCurrentService(double currentTime) {
         if (currentCustomer == null) {
-            return;
+            return null;
         }
 
-        currentCustomer.setDepartureTime(currentTime);
+        Customer completed = currentCustomer;
+        completed.setDepartureTime(currentTime);
 
-        totalBusyTime += currentCustomer.getServiceTime();
+        totalBusyTime += completed.getServiceTime();
         servedCustomerCount++;
 
         currentCustomer = null;
         busy = false;
+        
+        return completed;
+    }
+
+    /**
+     * Gets the next customer from the queue and starts their service.
+     * Returns true if a customer was started, false otherwise.
+     */
+    public boolean startNextCustomer(double currentTime) {
+        Customer nextCustomer = getNextWaitingCustomer();
+        if (nextCustomer != null) {
+            startService(nextCustomer, currentTime);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Returns the completion time of the current customer's service.
+     */
+    public double getCurrentCompletionTime() {
+        if (!busy || currentCustomer == null) {
+            return Double.MAX_VALUE;
+        }
+        return currentCustomer.getServiceStartTime() + currentCustomer.getServiceTime();
+    }
+
+    /**
+     * Calculates this station's utilization over the simulation duration.
+     */
+    public double getUtilization(double simulationDuration) {
+        return simulationDuration > 0 ? totalBusyTime / simulationDuration : 0;
+    }
+
+    /**
+     * Checks if there are any customers waiting in the queue.
+     */
+    public boolean hasWaitingCustomers() {
+        return !customerQueue.isEmpty();
+    }
+
+    /**
+     * Gets the next customer from the queue without removing them.
+     */
+    public Customer peekNextCustomer() {
+        return customerQueue.peek();
     }
 }

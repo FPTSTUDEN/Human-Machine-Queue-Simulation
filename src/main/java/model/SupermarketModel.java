@@ -32,6 +32,9 @@ public class SupermarketModel {
     // Track total customers for debugging
     private int totalCustomersCreated;
 
+    // Constants
+    private static final int MAX_QUEUE_LENGTH = 10;
+
     public SupermarketModel() {
         checkoutStations = new ArrayList<>();
         nextCustomerId = 1;
@@ -91,10 +94,7 @@ public class SupermarketModel {
 
         for (CheckoutStation station : checkoutStations) {
             if (station.getType() == type) {
-                int queueLength = station.getQueueLength();
-                if (station.isBusy()) {
-                    queueLength++; // Include current customer
-                }
+                int queueLength = station.getTotalCustomersIncludingCurrent();
                 if (queueLength < minQueueLength) {
                     minQueueLength = queueLength;
                     selected = station;
@@ -130,8 +130,7 @@ public class SupermarketModel {
         // Process service completions at current time
         for (CheckoutStation station : checkoutStations) {
             if (station.isBusy()) {
-                Customer customer = station.getCurrentCustomer();
-                double completionTime = customer.getServiceStartTime() + customer.getServiceTime();
+                double completionTime = station.getCurrentCompletionTime();
                 if (Math.abs(completionTime - currentTime) < 1e-9) {
                     processServiceCompletion(station);
                 }
@@ -153,18 +152,20 @@ public class SupermarketModel {
             
             // Check for idle stations that can start serving waiting customers
             for (CheckoutStation station : checkoutStations) {
-                if (!station.isBusy() && station.getQueueLength() > 0) {
-                    Customer nextCustomer = station.getNextCustomer();
+                if (!station.isBusy() && station.hasWaitingCustomers()) {
+                    Customer nextCustomer = station.peekNextCustomer();
                     if (nextCustomer != null) {
                         // Check if customer has already waited too long
                         double waitingTime = currentTime - nextCustomer.getArrivalTime();
                         if (waitingTime > config.getMaximumWaitingTime()) {
-                            // Customer waited too long, abandon
+                            // Customer waited too long, remove and abandon
+                            station.getNextWaitingCustomer(); // Remove from queue
                             nextCustomer.setAbandoned(true);
                             totalAbandoned++;
                             conditionChanged = true;
                         } else {
-                            station.startService(nextCustomer, currentTime);
+                            // Start service for this customer
+                            station.startNextCustomer(currentTime);
                             conditionChanged = true;
                         }
                     }
@@ -187,8 +188,7 @@ public class SupermarketModel {
         // Find next service completion time
         for (CheckoutStation station : checkoutStations) {
             if (station.isBusy()) {
-                Customer customer = station.getCurrentCustomer();
-                double completionTime = customer.getServiceStartTime() + customer.getServiceTime();
+                double completionTime = station.getCurrentCompletionTime();
                 if (completionTime < nextEventTime) {
                     nextEventTime = completionTime;
                 }
@@ -224,16 +224,8 @@ public class SupermarketModel {
         CheckoutStation selectedStation = selectShortestQueue(type);
 
         if (selectedStation != null) {
-            // Check if customer would wait too long based on current queue
-            double estimatedWaitTime = calculateEstimatedWaitTime(selectedStation, type);
-            
-            // Only abandon if queue is extremely long (more than 10 customers waiting)
-            int queueLength = selectedStation.getQueueLength();
-            if (selectedStation.isBusy()) {
-                queueLength++;
-            }
-            
-            if (queueLength > 10) {  // Only abandon if more than 10 people ahead
+            // Check if customer would wait too long based on queue length
+            if (!selectedStation.canAcceptCustomer(MAX_QUEUE_LENGTH)) {
                 customer.setAbandoned(true);
                 totalAbandoned++;
                 return;
@@ -244,59 +236,41 @@ public class SupermarketModel {
             
             // If station is idle, start service immediately
             if (!selectedStation.isBusy()) {
-                Customer nextCustomer = selectedStation.getNextCustomer();
-                if (nextCustomer != null) {
-                    selectedStation.startService(nextCustomer, currentTime);
-                }
+                selectedStation.startNextCustomer(currentTime);
             }
         }
-    }
-
-    /**
-     * Calculate estimated wait time for a station.
-     */
-    private double calculateEstimatedWaitTime(CheckoutStation station, CheckoutType type) {
-        int queueLength = station.getQueueLength();
-        if (station.isBusy()) {
-            queueLength++; // Include current customer
-        }
-        
-        double avgServiceTime;
-        if (type == CheckoutType.HUMAN_CASHIER) {
-            avgServiceTime = getAverageServiceTime(config.getHumanServiceTimes());
-        } else {
-            avgServiceTime = getAverageServiceTime(config.getMachineServiceTimes());
-        }
-        
-        return queueLength * avgServiceTime;
     }
 
     /**
      * Process a service completion event.
      */
     private void processServiceCompletion(CheckoutStation station) {
-        Customer customer = station.getCurrentCustomer();
+        // Complete current service and get the completed customer
+        Customer customer = station.completeCurrentService(currentTime);
         
-        // Record service statistics
-        totalServed++;
-        totalServiceTime += customer.getServiceTime();
-        totalWaitingTime += customer.getWaitingTime();
+        if (customer != null) {
+            // Record service statistics
+            totalServed++;
+            totalServiceTime += customer.getServiceTime();
+            totalWaitingTime += customer.getWaitingTime();
+        }
         
-        station.completeService(currentTime);
+        // Try to start next customer
+        boolean startedNext = station.startNextCustomer(currentTime);
         
-        // Start serving next customer if any
-        Customer nextCustomer = station.getNextCustomer();
-        if (nextCustomer != null) {
-            // Check if next customer has waited too long
-            double waitingTime = currentTime - nextCustomer.getArrivalTime();
-            if (waitingTime > config.getMaximumWaitingTime()) {
-                // Customer waited too long, abandon
-                nextCustomer.setAbandoned(true);
-                totalAbandoned++;
-                // Try next customer recursively
-                processServiceCompletion(station);
-            } else {
-                station.startService(nextCustomer, currentTime);
+        // If next customer started, check if they waited too long
+        if (startedNext) {
+            Customer nextCustomer = station.getCurrentCustomer();
+            if (nextCustomer != null) {
+                double waitingTime = currentTime - nextCustomer.getArrivalTime();
+                if (waitingTime > config.getMaximumWaitingTime()) {
+                    // Customer waited too long, abandon and try next
+                    station.completeCurrentService(currentTime); // Force completion
+                    nextCustomer.setAbandoned(true);
+                    totalAbandoned++;
+                    // Recursively process next customer
+                    processServiceCompletion(station);
+                }
             }
         }
     }
@@ -307,10 +281,7 @@ public class SupermarketModel {
     private void measureQueueLength() {
         int currentTotalQueue = 0;
         for (CheckoutStation station : checkoutStations) {
-            currentTotalQueue += station.getQueueLength();
-            if (station.isBusy()) {
-                currentTotalQueue++;
-            }
+            currentTotalQueue += station.getTotalCustomersIncludingCurrent();
         }
         totalQueueLength += currentTotalQueue;
         totalQueueMeasurements++;
@@ -404,8 +375,8 @@ public class SupermarketModel {
     private void handleRemainingCustomers() {
         for (CheckoutStation station : checkoutStations) {
             // Abandon all customers in queues
-            while (station.getQueueLength() > 0) {
-                Customer customer = station.getNextCustomer();
+            while (station.hasWaitingCustomers()) {
+                Customer customer = station.getNextWaitingCustomer();
                 if (customer != null && !customer.isAbandoned()) {
                     customer.setAbandoned(true);
                     totalAbandoned++;
@@ -421,7 +392,7 @@ public class SupermarketModel {
                     totalServiceTime += customer.getServiceTime();
                     totalWaitingTime += customer.getWaitingTime();
                 }
-                station.completeService(currentTime);
+                station.completeCurrentService(currentTime);
             }
         }
     }
@@ -430,7 +401,7 @@ public class SupermarketModel {
      * Calculate simulation results.
      */
     private SimulationResult calculateResults(SimulationConfig config) {
-        // Calculate utilization
+        // Calculate utilization using station's own method
         double humanUtilization = 0;
         double machineUtilization = 0;
         int humanCount = 0;
@@ -438,19 +409,19 @@ public class SupermarketModel {
 
         for (CheckoutStation station : checkoutStations) {
             if (station.getType() == CheckoutType.HUMAN_CASHIER) {
-                humanUtilization += station.getTotalBusyTime();
+                humanUtilization += station.getUtilization(config.getSimulationDuration());
                 humanCount++;
             } else {
-                machineUtilization += station.getTotalBusyTime();
+                machineUtilization += station.getUtilization(config.getSimulationDuration());
                 machineCount++;
             }
         }
 
         if (humanCount > 0) {
-            humanUtilization = humanUtilization / (config.getSimulationDuration() * humanCount);
+            humanUtilization = humanUtilization / humanCount;
         }
         if (machineCount > 0) {
-            machineUtilization = machineUtilization / (config.getSimulationDuration() * machineCount);
+            machineUtilization = machineUtilization / machineCount;
         }
 
         double averageWaitingTime = totalServed > 0 ? totalWaitingTime / totalServed : 0;
