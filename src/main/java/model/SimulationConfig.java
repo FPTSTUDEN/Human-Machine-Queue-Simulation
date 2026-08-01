@@ -1,4 +1,5 @@
 package model;
+
 /**
  * Stores the input parameters received from the Controller
  * before a simulation run starts.
@@ -9,8 +10,8 @@ public class SimulationConfig {
     private final int selfCheckoutCount;
 
     private final double arrivalRate;
-    private final double humanServiceTime;
-    private final double machineServiceTime;
+    private final double[] humanServiceTimes;
+    private final double[] machineServiceTimes;
 
     private final double simulationDuration;
     private final double maximumWaitingTime;
@@ -19,16 +20,16 @@ public class SimulationConfig {
             int humanCashierCount,
             int selfCheckoutCount,
             double arrivalRate,
-            double humanServiceTime,
-            double machineServiceTime,
+            double[] humanServiceTimes,
+            double[] machineServiceTimes,
             double simulationDuration,
             double maximumWaitingTime) {
 
         this.humanCashierCount = humanCashierCount;
         this.selfCheckoutCount = selfCheckoutCount;
         this.arrivalRate = arrivalRate;
-        this.humanServiceTime = humanServiceTime;
-        this.machineServiceTime = machineServiceTime;
+        this.humanServiceTimes = humanServiceTimes;
+        this.machineServiceTimes = machineServiceTimes;
         this.simulationDuration = simulationDuration;
         this.maximumWaitingTime = maximumWaitingTime;
     }
@@ -45,12 +46,12 @@ public class SimulationConfig {
         return arrivalRate;
     }
 
-    public double getHumanServiceTime() {
-        return humanServiceTime;
+    public double[] getHumanServiceTimes() {
+        return humanServiceTimes;
     }
 
-    public double getMachineServiceTime() {
-        return machineServiceTime;
+    public double[] getMachineServiceTimes() {
+        return machineServiceTimes;
     }
 
     public double getSimulationDuration() {
