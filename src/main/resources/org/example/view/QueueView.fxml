@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml"
+      alignment="CENTER"
+      spacing="15">
+
+    <Label text="Waiting Queue"/>
+
+    <ListView prefHeight="300" prefWidth="400"/>
+
+    <Label text="Queue Size: 0"/>
+
+</VBox>

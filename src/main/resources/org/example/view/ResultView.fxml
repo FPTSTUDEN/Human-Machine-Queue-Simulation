@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns:fx="http://javafx.com/fxml"
+      alignment="CENTER"
+      spacing="15">
+
+    <Label text="Simulation Result"/>
+
+    <Label text="Total Customers: 0"/>
+    <Label text="Served Customers: 0"/>
+    <Label text="Average Waiting Time: 0"/>
+
+    <Button text="Run Again"/>
+
+</VBox>
