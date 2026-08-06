@@ -1,4 +1,4 @@
-package org.example.view;
+package view;
 
 public class SimDashboardView {
 
