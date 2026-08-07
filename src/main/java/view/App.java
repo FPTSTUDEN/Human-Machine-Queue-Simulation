@@ -9,11 +9,11 @@ public class App extends Application {
 
     @Override
     public void start(Stage stage) throws Exception {
-
+        System.out.println(getClass().getResource("/org/example/view/SimDashboardView.fxml"));
         FXMLLoader loader = new FXMLLoader(
-                getClass().getResource("/org.example.view/SimDashboardView.fxml"));
+                getClass().getResource("/org/example/view/SimDashboardView.fxml"));
 
-        Scene scene = new Scene(loader.load(),800,500);
+        Scene scene = new Scene(loader.load(), 800, 500);
 
         stage.setTitle("Human Machine Queue Simulation");
         stage.setScene(scene);
