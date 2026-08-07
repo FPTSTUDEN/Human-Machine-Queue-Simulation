@@ -65,6 +65,9 @@ public class Controller {
     }
     
     public SimulationResults runSimulation() {
+        /**
+         * Run the simulation until the specified duration is reached.
+         */
         currentTime = 0;
         nextArrivalTime = generateExponentialInterarrival();
         
@@ -80,6 +83,9 @@ public class Controller {
     }
     
     private void processArrivals() {
+        /**
+         * Assign customers to stations based on their arrival times and the current state of the stations.
+         */
         while (nextArrivalTime <= currentTime && currentTime < config.getSimulationDuration()) {
             Customer customer = createCustomer(nextArrivalTime);
             assignCustomerToStation(customer);
@@ -92,6 +98,9 @@ public class Controller {
     }
     
     private void assignCustomerToStation(Customer customer) {
+        /** 
+         * Assign the customer to the best available checkout station based on the current state of the stations.
+         */
         CheckoutStation station = selectBestStation();
         if (station == null) return;
         
@@ -108,6 +117,10 @@ public class Controller {
     }
     
     private void processServiceCompletions() {
+        /**
+         * Check each station for service completions and process them accordingly.
+         * Use a loop to ensure all completions are processed before moving to the next phase.
+         */
         boolean hasCompletions;
         do {
             hasCompletions = false;
@@ -121,12 +134,20 @@ public class Controller {
     }
     
     private boolean isServiceComplete(CheckoutStation station) {
+        /**
+         * Check if the station service is complete.
+         * Use the current time and the service start time of the customer to determine if the service duration has elapsed.
+         */
         Customer customer = station.getCurrentCustomer();
         double finishTime = customer.getServiceStartTime() + customer.getServiceTime();
         return finishTime <= currentTime;
     }
     
     private void completeService(CheckoutStation station) {
+        /**
+         * Complete the service at the station for the current customer.
+         * Update statistics for served customers and start the next customer in line if available.
+         */
         Customer customer = station.getCurrentCustomer();
         station.completeService(currentTime);
         totalCustomersServed++;
@@ -136,6 +157,9 @@ public class Controller {
     }
     
     private void processAbandonments() {
+        /**
+         * Mark customers as abandoned if exceeding the maximum allowed waiting time.
+         */
         double maxWaitTime = config.getMaximumWaitingTime();
         
         for (CheckoutStation station : stations) {
@@ -150,6 +174,10 @@ public class Controller {
     }
     
     private void abandonCustomer(CheckoutStation station) {
+        /**
+         * Remove the next customer from the station's queue and mark them as abandoned.
+         * Update statistics for abandoned customers.
+         */
         Customer customer = station.removeNextCustomer();
         if (customer != null) {
             customer.setAbandoned(true);
@@ -160,6 +188,10 @@ public class Controller {
     }
     
     private void advanceTime() {
+        /**
+         * Advance the simulation time to the next event.
+         * The time is determined by the next arrival or the next service completion, whichever is sooner.
+         */
         double nextEventTime = findNextEventTime();
         
         if (nextEventTime == Double.MAX_VALUE) {
@@ -170,6 +202,10 @@ public class Controller {
     }
     
     private double findNextEventTime() {
+        /**
+         * Find the next event time by checking busy stations.
+         * Returns the minimum of the station's next arrival time and the next service completion time.
+         */
         double nextTime = Double.MAX_VALUE;
         
         // Next arrival
@@ -192,6 +228,10 @@ public class Controller {
     }
     
     private void finishRemainingServices() {
+        /**
+         * Complete remaining services for all busy stations.
+         * Update statistics for served customers and ensure all stations are processed before finalizing the simulation.
+         */
         for (CheckoutStation station : stations) {
             if (station.isBusy()) {
                 Customer customer = station.getCurrentCustomer();
@@ -204,10 +244,20 @@ public class Controller {
     }
     
     private double generateExponentialInterarrival() {
+        /**
+         * Generate an exponentially distributed interarrival time based on the configured arrival rate.
+         * Uses the inverse transform sampling method to generate the interarrival time.
+         */
         return -Math.log(1 - random.nextDouble()) / config.getArrivalRate();
     }
     
     private SimulationResults generateResults() {
+        /**
+         * Generate the final simulation results, 
+         * including total customers, served, abandoned, waiting time, system time, and station statistics.
+         * Returns a SimulationResults object containing all relevant statistics after the simulation run.
+         * This method is called after the simulation has completed to summarize the outcomes.
+         */
         SimulationResults results = new SimulationResults();
         results.setTotalCustomers(allCustomers.size());
         results.setTotalCustomersServed(totalCustomersServed);
