@@ -1,23 +1,41 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Pos?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.VBox?>
 
 <VBox xmlns:fx="http://javafx.com/fxml"
+      fx:controller="view.SimDashboardView"
       alignment="CENTER"
       spacing="15">
 
     <Label text="Human-Machine Queue Simulation"/>
 
-    <TextField promptText="Number of Customers"/>
+    <TextField fx:id="customerField"
+               promptText="Number of Customers"/>
 
-    <TextField promptText="Number of Human Cashiers"/>
+    <TextField fx:id="humanField"
+               promptText="Number of Human Cashiers"/>
 
-    <TextField promptText="Number of Self-Service Machines"/>
+    <TextField fx:id="machineField"
+               promptText="Number of Self-Service Machines"/>
 
     <HBox alignment="CENTER" spacing="10">
-        <Button text="Start Simulation"/>
-        <Button text="Reset"/>
+        <Button text="Start Simulation"
+                onAction="#startSimulation"/>
+
+        <Button text="Reset"
+                onAction="#resetSimulation"/>
     </HBox>
+
+    <Pane fx:id="simulationPane"
+          prefWidth="700"
+          prefHeight="250"
+          style="-fx-background-color:white;
+                 -fx-border-color:black;"/>
 
 </VBox>
